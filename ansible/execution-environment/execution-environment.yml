@@ -1,0 +1,7 @@
+---
+version: 1
+
+ansible_config: ansible/execution-environment/ansible.cfg
+
+dependencies:
+  galaxy: ./requirements.yml

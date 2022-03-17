@@ -1,0 +1,59 @@
+---
+- name: Satellite server configuration playbook
+  hosts: ipaserver,ipaclients
+  become: true
+  vars_prompt:
+    - name: rhsm_user
+      prompt: What is your RHSM Username (RHNID)?
+      unsafe: yes
+      private: no
+
+    - name: rhsm_password
+      prompt: What is your RHSM Password?
+      unsafe: yes
+      private: yes
+
+#    - name: rhsm_pool_id
+#      prompt: What is the pool-id for your subscription (check README)?
+#      unsafe: yes
+#      private: no
+
+  tasks:
+    - name: Set idm-server IP fact
+      set_fact:
+        idm_server_ip: "{{ hostvars[groups['ipaserver'][0]]['ansible_default_ipv4']['address'] }}"
+
+    - name: Register system with Red Hat Subscription Manager
+      community.general.redhat_subscription:
+        state: present
+        username: "{{ rhsm_user }}"
+        password: "{{ rhsm_password }}"
+#        pool_ids: "{{ rhsm_pool_id }}"
+
+    - name: Ensure all packages are updated
+      yum:
+        name: '*'
+        state: latest
+
+- name: Playbook to configure IPA servers
+  hosts: ipaserver
+  become: true
+  collections:
+    - freeipa.ansible_freeipa
+
+  roles:
+  - role: freeipa.ansible_freeipa.ipaserver
+    state: present
+
+- name: Playbook to configure ipaclients to use ipa-server as DNS
+  hosts: ipaclients
+  become: true
+  tasks:
+    - name: Set DNS to idm-server
+      shell: nmcli con mod ens3 ipv4.dns {{ hostvars[inventory_hostname].idm_server_ip }}
+
+    - name: Restart NetworkManager
+      service:
+        name: NetworkManager
+        state: restarted
+
