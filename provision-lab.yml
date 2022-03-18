@@ -73,3 +73,10 @@
       debug:
         msg: "Setup completed, now you can proceed with post install steps"
 
+    - name: Setup sysadmin user to use sudo
+      copy:
+        content: '%wheel	ALL=(ALL)	NOPASSWD: ALL'
+        dest: /etc/sudoers.d/wheelers
+        mode: 0400
+        owner: root
+        group: root
