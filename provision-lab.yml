@@ -68,11 +68,7 @@
         delay: 0
 
     - ping:
-
-    - name: Setup is ready
-      debug:
-        msg: "Setup completed, now you can proceed with post install steps"
-
+    
     - name: Setup sysadmin user to use sudo
       copy:
         content: '%wheel	ALL=(ALL)	NOPASSWD: ALL'
@@ -80,3 +76,8 @@
         mode: 0400
         owner: root
         group: root
+
+    - name: Setup is ready
+      debug:
+        msg: "Setup completed, now you can proceed with post install steps"
+
