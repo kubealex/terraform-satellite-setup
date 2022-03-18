@@ -13,11 +13,6 @@
       loop:
         - module: 01_satellite_instance
           kickstart: rhel7-satellite
-        - module: 02_client_instance
-          kickstart: rhel7
-        - module: 02_client_instance
-          kickstart: rhel8
-        
         
     - name: Provision all terraform resources
       community.general.terraform:
@@ -48,8 +43,6 @@
           - "servers"        
       loop:
         - satellite
-        - el7-server
-        - el8-server
 
     - name: Ensure to clean known_hosts
       known_hosts:
@@ -72,4 +65,3 @@
     - name: Setup is ready
       debug:
         msg: "Setup completed, now you can proceed with post install steps"
-
