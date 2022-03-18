@@ -95,7 +95,9 @@
         --foreman-initial-organization "Red Hat" \
         --foreman-initial-location "Raleigh" \
         --foreman-initial-admin-username admin \
-        --foreman-initial-admin-password redhat
+        --foreman-initial-admin-password redhat \
+        --enable-foreman-plugin-rh-cloud \
+        --foreman-proxy-plugin-remote-execution-ssh-install-key true
 
     - name: Reboot server
       reboot: 

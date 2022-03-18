@@ -13,13 +13,13 @@ variable domain {
 variable memory {
   type        = number
   description = "Amount of memory in GBs for the VM"
-  default     = 8
+  default     = 32
 }
 
 variable cpu {
   type        = number
   description = "Amount of CPUs for the VM"
-  default     = 2
+  default     = 4
 }
 
 variable libvirt_network {
