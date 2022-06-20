@@ -1,6 +1,6 @@
 ---
 - name: Satellite server configuration playbook
-  hosts: satellite
+  hosts: sso
   become: true
   vars_prompt:
     - name: rhsm_user
