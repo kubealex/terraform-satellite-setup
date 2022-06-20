@@ -1,0 +1,20 @@
+localhost ansible_connection=local
+
+[automationcontroller]
+localhost ansible_connection=local
+
+[database]
+
+[all:vars]
+admin_password='redhat'
+
+pg_host=''
+pg_port=''
+
+pg_database='awx'
+pg_username='awx'
+pg_password='redhat'
+
+registry_url='registry.redhat.io'
+registry_username='<registry username>'
+registry_password='<registry password>'

@@ -1,0 +1,150 @@
+- name: Download RHEL ISO
+  hosts: localhost
+  vars_prompt:
+    - name: offline_token
+      prompt: What is your Offline Token? Leave this empty if you don't want to download ISOS (Check README)
+      unsafe: yes
+      private: yes      
+  vars:
+    checksum:
+      rhel8: 1f78e705cd1d8897a05afa060f77d81ed81ac141c2465d4763c0382aa96cadd0
+        
+  tasks:
+    - block:
+      - name: Retrieve an access token
+        uri:
+          url: https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token
+          body:
+            grant_type: refresh_token
+            client_id: rhsm-api
+            refresh_token: "{{ offline_token }}"
+          body_format: form-urlencoded
+          method: POST
+        register: response
+
+      - name: Workaround to non-working uri module on success
+        shell: 'curl -H "Authorization: Bearer {{ response.json.access_token }}" https://api.access.redhat.com/management/v1/images/{{ checksum.rhel8 }}/download'
+        register: imageurl
+
+  # HANGING FOREVER
+  #    - name: Retrieve image download URL
+  #      ansible.builtin.uri:
+  #        url: https://api.access.redhat.com/management/v1/images/{{ checksum.rhel8 }}/download
+  #        return_content: true
+  #        follow_redirects: all
+  #        headers:
+  #          Content-Type: application/json
+  #          Authorization: 'Bearer {{ response.json.access_token }}'
+  #          User-Agent: curl/7.61.1
+  #      register: imageurl
+      - name: Set result as facts
+        ansible.builtin.set_fact:
+          installer_url: "{{ (imageurl.stdout | from_json).body.href }}"
+          installer_package: "{{(imageurl.stdout | from_json).body.filename }}"
+
+      - name: Retrieve RHEL ISO
+        get_url:
+          url: "{{ installer_url }}"
+          dest: "{{ playbook_dir }}/rhel8.iso"
+
+      when: offline_token is undefined
+
+
+- name: This play provisions VMs for AAP2 demos
+  hosts: localhost
+  vars:
+    network_cidr: 192.168.216.0/24
+  tasks:
+
+    - name: Create symbolic link to RHEL image
+      file:
+        src: "{{ playbook_dir }}/rhel8.iso"
+        dest: "{{ playbook_dir }}/terraform/modules/{{ item.module }}/rhel8.iso"
+        state: link
+      loop:
+        - 01_controller_instance
+        - 02_hub_instance
+
+    - name: Create a 1Mib file to store kickstart
+      community.general.filesize:
+        path: "{{ playbook_dir }}/terraform/modules/{{ item.module }}/{{ item.kickstart }}-oemdrv.img"
+        size: 1MiB
+      loop:
+        - module: 01_controller_instance
+          kickstart: rhel8-controller
+        - module: 02_hub_instance
+          kickstart: rhel8-hub
+
+    - name: Rebuild Kickstart config
+      community.general.filesystem:
+        fstype: ext2
+        dev: "{{ playbook_dir }}/terraform/modules/{{ item.module }}/{{ item.kickstart }}-oemdrv.img"
+        opts: -d {{ playbook_dir }}/terraform/kickstart/{{ item.kickstart }} -L OEMDRV
+        force: true
+      loop:
+        - module: 01_controller_instance
+          kickstart: rhel8-controller
+        - module: 02_hub_instance
+          kickstart: rhel8-hub
+        
+    - name: Provision all terraform resources
+      community.general.terraform:
+        project_path: "terraform/"
+        force_init: true
+        variables:
+          network_cidr: ' ["{{ network_cidr }}"]'
+        state: present
+
+    - name: Add Local resolver for the domain
+      copy:
+        content: server=/aapdemo.labs/{{ network_cidr | next_nth_usable(1)}}
+        dest: /etc/NetworkManager/dnsmasq.d/aapdemo.conf
+      become: true
+    
+    - name: Restart NetworkManager to reload config
+      service:
+        name: NetworkManager
+        state: restarted
+
+    - name: Add servers to inventory
+      add_host:
+        hostname: "{{ item }}.aapdemo.labs"
+        ansible_user: root
+        ansible_password: redhat
+        ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+        groups:
+          - "servers"        
+      loop:
+        - controller
+        - hub
+
+    - name: Ensure to clean known_hosts
+      known_hosts:
+        host: "{{ item }}"
+        path: ~/.ssh/known_hosts
+        state: absent
+      loop: "{{ groups['servers'] }}"
+
+- name: Check connection to servers
+  hosts: servers
+  gather_facts: no
+  tasks:
+    - name: Waiting for installation to end, it can take time!
+      wait_for_connection:
+        timeout: 1800
+        delay: 0
+
+    - name: Setup sysadmin user to use sudo
+      copy:
+        content: '%wheel	ALL=(ALL)	NOPASSWD: ALL'
+        dest: /etc/sudoers.d/wheelers
+        mode: 0400
+        owner: root
+        group: root
+
+    - ping:
+
+    - name: Setup is ready
+      debug:
+        msg: "Setup completed, now you can proceed with post install steps"
+

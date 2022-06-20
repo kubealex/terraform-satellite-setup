@@ -1,0 +1,7 @@
+localhost ansible_connection=local
+
+[controller]
+controller.aapdemo.labs ansible_user=sysadmin ansible_ssh_pass=redhat
+
+[hub]
+hub.aapdemo.labs ansible_user=sysadmin ansible_ssh_pass=redhat
