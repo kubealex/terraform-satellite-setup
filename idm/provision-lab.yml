@@ -1,0 +1,66 @@
+- name: This play provisions VMs for centos2rhel migration demos
+  hosts: localhost
+  vars:
+    network_cidr: 192.168.210.0/24
+  tasks:
+    - name: Provision all terraform resources
+      community.general.terraform:
+        project_path: "terraform/"
+        force_init: true
+        variables:
+          network_cidr: ' ["{{ network_cidr }}"]'
+        state: present
+
+    - name: Add Local resolver for the domain
+      copy:
+        content: server=/idmdemo.labs/{{ network_cidr | next_nth_usable(1)}}
+        dest: /etc/NetworkManager/dnsmasq.d/rhdemo.conf
+      become: true
+    
+    - name: Restart NetworkManager to reload config
+      service:
+        name: NetworkManager
+        state: restarted
+
+    - name: Add servers to inventory
+      add_host:
+        hostname: "{{ item }}.idmdemo.labs"
+        ansible_user: root
+        ansible_password: redhat
+        ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+        groups:
+          - "servers"        
+      loop:
+        - idm-server
+        - idm-client
+
+    - name: Ensure to clean known_hosts
+      known_hosts:
+        host: "{{ item }}"
+        path: ~/.ssh/known_hosts
+        state: absent
+      loop: "{{ groups['servers'] }}"
+
+- name: Check connection to servers
+  hosts: servers
+  gather_facts: no
+  tasks:
+    - name: Waiting for installation to end, it can take time!
+      wait_for_connection:
+        timeout: 1800
+        delay: 600
+
+    - ping:
+
+    - name: Setup sysadmin user to use sudo
+      copy:
+        content: '%wheel	ALL=(ALL)	NOPASSWD: ALL'
+        dest: /etc/sudoers.d/wheelers
+        mode: 0400
+        owner: root
+        group: root
+
+    - name: Setup is ready
+      debug:
+        msg: "Setup completed, now you can proceed with post install steps"
+
