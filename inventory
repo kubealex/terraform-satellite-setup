@@ -1,3 +1,0 @@
-localhost ansible_connection=local
-[satellite]
-satellite.satellitedemo.labs ansible_user=root
