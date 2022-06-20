@@ -36,15 +36,15 @@ module "idm_server" {
   disk_size = var.disk_size
 }
 
-module "rhel_client" { 
-  source = "./modules/02_rhel_client"
-  depends_on = [module.libvirt_resources]
-  
-# Variables
-  domain = var.domain
-  libvirt_network = var.libvirt_network
-  libvirt_pool = var.libvirt_pool
-  disk_size = var.disk_size
-}
+#module "rhel_client" { 
+#  source = "./modules/02_rhel_client"
+#  depends_on = [module.libvirt_resources]
+#  
+## Variables
+#  domain = var.domain
+#  libvirt_network = var.libvirt_network
+#  libvirt_pool = var.libvirt_pool
+#  disk_size = var.disk_size
+#}
 
 
